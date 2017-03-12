@@ -1,0 +1,36 @@
+{
+  "nginx": {
+    "config": "/etc/nginx/",
+    "version": "0.1.0",
+    "dependencies": {
+      "letsencrypt": "^0.1.0"
+    },
+    "service": "nginx",
+    "packages": {
+      "_": ["nginx"]
+    },
+    "category": "webserver"
+  },
+
+  "vsftpd": {
+    "config": "/etc/vsftpd.conf",
+    "version": "0.1.0",
+    "dependencies": {},
+    "service": "vsftpd",
+    "packages": {
+      "_": ["vsftpd"]
+    },
+    "category": "filesharing"
+  },
+
+  "mysql": {
+    "config": "/etc/mysql/",
+    "version": "0.1.0",
+    "dependencies": {},
+    "service": "mysql",
+    "packages": {
+      "_": ["mysql"]
+    },
+    "category": "database"
+  }
+}

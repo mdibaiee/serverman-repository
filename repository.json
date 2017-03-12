@@ -1,6 +1,6 @@
 [
   {
-    "name": "nginx"
+    "name": "nginx",
     "service": "nginx",
     "config": "/etc/nginx/",
     "version": "0.1.0",

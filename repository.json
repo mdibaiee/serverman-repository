@@ -2,11 +2,8 @@
   {
     "name": "nginx",
     "service": "nginx",
-    "config": "/etc/nginx/",
     "version": "0.1.0",
-    "dependencies": {
-      "letsencrypt": "^0.1.0"
-    },
+    "dependencies": ["letsencrypt"],
     "packages": {
       "_": ["nginx"]
     },
@@ -15,9 +12,8 @@
 
   {
     "name": "vsftpd",
-    "config": "/etc/vsftpd.conf",
     "version": "0.1.0",
-    "dependencies": {},
+    "dependencies": [],
     "service": "vsftpd",
     "packages": {
       "_": ["vsftpd"]
@@ -27,12 +23,22 @@
 
   {
     "name": "mysql",
-    "config": "/etc/mysql/",
     "version": "0.1.0",
-    "dependencies": {},
+    "dependencies": [],
     "service": "mysql",
     "packages": {
       "_": ["mysql"]
+    },
+    "category": "database"
+  },
+
+  {
+    "name": "mongodb",
+    "version": "0.1.0",
+    "dependencies": [],
+    "service": "mongodb",
+    "packages": {
+      "_": ["mongodb"]
     },
     "category": "database"
   }

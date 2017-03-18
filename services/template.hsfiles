@@ -1,0 +1,37 @@
+{-# START_FILE serverman-service-{{name}}.cabal #-}
+name:                serverman-service-{{name}}
+version:             0.1.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/{{github-username}}{{^github-username}}githubuser{{/github-username}}/{{name}}#readme
+license:             GPL-3
+license-file:        LICENSE
+author:              {{author-name}}{{^author-name}}Author name here{{/author-name}}
+maintainer:          {{author-email}}{{^author-email}}example@example.com{{/author-email}}
+copyright:           {{year}}{{^year}}2017{{/year}} {{author-name}}{{^author-name}}Author name here{{/author-name}}
+category:            {{category}}{{^category}}serverman{{/category}}
+build-type:          Simple
+cabal-version:       >=1.10
+
+executable {{name}}
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , data-default-class
+                     , mtl
+
+{-# START_FILE src/Main.hs #-}
+{-# LANGUAGE NamedFieldPuns #-}
+module Main (call, main) where
+import System.Serverman.Types
+import System.Serverman.Utils
+import Control.Monad.State
+
+call :: Service -> App ()
+call s@(Service { name, version, service })= do
+  (AppState { os, arguments }) <- get
+  return ()
+
+main :: IO ()
+main = return ()

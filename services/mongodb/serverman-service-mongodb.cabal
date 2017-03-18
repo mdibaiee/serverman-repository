@@ -1,0 +1,24 @@
+name:                serverman-service-mongodb
+version:             0.1.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/mdibaiee/mongodb#readme
+license:             GPL-3
+license-file:        LICENSE
+author:              Mahdi Dibaiee
+maintainer:          mahdi@theread.me
+copyright:           2017 Mahdi Dibaiee
+category:            mongodb
+build-type:          Simple
+cabal-version:       >=1.10
+
+executable mongodb
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , data-default-class
+                     , mtl
+                     , mongoDB >= 2.1.1.1 && < 3
+                     , bytestring
+                     , text

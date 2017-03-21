@@ -34,22 +34,22 @@ module Types ( FileSharingParams (..)
                             , anonymous      = False
                             , anonymousWrite = False
                             , recreateUser   = False
-                            }
-
+                            } 
   instance Show FileSharingParams where
     show (FileSharingParams { directory, user, pass, port, writable, anonymous, anonymousWrite }) =
       let boolToEnglish True  = "YES"
           boolToEnglish False = "NO"
       in 
         keyvalue [ ("anonymous_enable", boolToEnglish anonymous)
-                  , ("write_enable", boolToEnglish writable)
-                  , ("allow_writeable_chroot", boolToEnglish writable)
-                  , ("anon_upload_enable", boolToEnglish anonymousWrite)
-                  , ("anon_mkdir_write_enable", boolToEnglish anonymousWrite)
-                  , ("listen", "YES")
-                  , ("userlist_enable", "YES")
-                  , ("userlist_file", "/etc/vsftpd-serverman-user-list")
-                  , ("userlist_deny", "NO")
-                  , ("chroot_local_user", "YES")
-                  , ("xferlog_enable", "YES")
-                  , ("local_enable", "YES")] "="
+                 , ("write_enable", boolToEnglish writable)
+                 , ("allow_writeable_chroot", boolToEnglish writable)
+                 , ("anon_upload_enable", boolToEnglish anonymousWrite)
+                 , ("anon_mkdir_write_enable", boolToEnglish anonymousWrite)
+                 , ("listen", "YES")
+                 , ("userlist_enable", "YES")
+                 , ("userlist_file", "/etc/vsftpd-serverman-user-list")
+                 , ("userlist_deny", "NO")
+                 , ("local_root", directory)
+                 , ("xferlog_enable", "YES")
+                 , ("local_enable", "YES")
+                 , ("pam_service_name", "ftp")] "="

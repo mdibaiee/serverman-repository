@@ -14,7 +14,7 @@ module Main (call, main) where
   import Control.Monad.Free
   import Data.List
   import Data.Either
-  import Control.Monad.State
+  import Control.Monad.State hiding (liftIO)
 
 
   call :: Service -> App ()
@@ -33,10 +33,13 @@ module Main (call, main) where
     (Right opensslResponse) <- execute "openssl" ["passwd", "-1", pass] "" True
     let encryptedPassword = head . lines $ opensslResponse
 
-    executeRoot "useradd" [user, "-d", directory, "-G", "ftp", "-p", encryptedPassword] "" True
+    executeRoot "groupadd" ["-f", "ftp"] "" False
+    executeRoot "useradd" [user, "-d", directory, "-G", "ftp", "-p", encryptedPassword] "" False
 
     liftIO $ do
-      renameFileIfMissing original (original ++ ".backup")
+      execIfExists original $ do
+        renameFileIfMissing original (original ++ ".backup")
+
       writeFile original content
       writeFile userList user
 

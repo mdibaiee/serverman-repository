@@ -2,6 +2,7 @@
 module Main (call, main) where
   import System.Serverman.Types
   import System.Serverman.Utils
+  import System.Serverman.Log
   import Types
 
   import System.Directory
@@ -11,18 +12,31 @@ module Main (call, main) where
   import System.Process
   import Control.Concurrent.Async
   import Control.Monad
-  import Control.Monad.State
+  import Control.Monad.State hiding (liftIO)
   import Control.Monad.Free
   import Data.List
 
   main :: IO ()
   main = return ()
 
+  help :: App String
+  help = return $
+          mkHelp "nginx [--options]"
+                  [ ("--directory <path>", "(static) directory to serve, default: /var/www/html")
+                  , ("--domain <domain>", "domain name to listen on, default: localhost")
+                  , ("--port <num>", "port number to listen on, default: 80")
+                  , ("--forward <num>", "(forward) port number to forward to")
+                  , ("--email <email>", "(ssl) email to register SSL certificate on")
+                  , ("--ssl", "(ssl) generate an SSL certificate using letsencrypt")
+                  , ("--directory-listing", "(static) enable directory indexing")]
+
   call :: Service -> App ()
   call _ = 
     do
       (AppState { arguments }) <- get
       let params@(ServerParams { ssl, domain, directory, serverType, email }) = toServerParams arguments
+
+      verbose $ show params
 
       -- Turn SSL off at first, because we have not yet received a certificate
       let content = show (params { ssl = False, port = "80" })
@@ -33,31 +47,37 @@ module Main (call, main) where
           targetDir = directory
 
           createCert path cmd = do
+            verbose $ "creating certificate in " ++ path ++ " using command " ++ cmd
             result <- executeRoot cmd ["certonly", "--webroot", "--webroot-path", directory, "-d", domain, "--email", email, "--agree-tos", "-n"] "" False
             case result of
               Left _ -> if cmd == "letsencrypt" then createCert path "certbot" else return ()
               Right stdout -> do
-                liftIO $ putStrLn stdout
+                write stdout
 
                 when (not ("error" `isInfixOf` stdout)) $ do
+                  verbose $ "writing params to " ++ path
                   liftIO $ writeFile path (show params)
                   liftIO . wait =<< restart
                   return ()
 
+      verbose $ "creating directories " ++ targetDir ++ ", " ++ parent
       liftIO $ do
         createDirectoryIfMissing True targetDir
         createDirectoryIfMissing True parent
 
-        writeIncludeStatementIfMissing mainConfig parent
+      verbose $ "adding include statement to " ++ mainConfig ++ " pointing to " ++ parent
+      liftIO $ writeIncludeStatementIfMissing mainConfig parent
 
-        when ssl $ do
-          let sslPath = config </> "ssl.conf"
-          writeFileIfMissing sslPath nginxSSL
-          putStrLn $ "wrote ssl configuration to " ++ sslPath
+      when ssl $ do
+        let sslPath = config </> "ssl.conf"
+        verbose $ "writing SSL configuration to " ++ sslPath
 
-        writeFile path content
+        liftIO $ writeFileIfMissing sslPath nginxSSL
 
-        putStrLn $ "wrote your configuration file to " ++ path
+        info $ "wrote ssl configuration to " ++ sslPath
+
+      liftIO $ writeFile path content
+      info $ "wrote your configuration file to " ++ path
         
       liftIO . wait =<< restart
 
@@ -66,6 +86,8 @@ module Main (call, main) where
         dhExists <- liftIO $ doesFileExist dhparamPath
 
         when (not dhExists) $ do
+          verbose $ "creating dhparam using openssl"
+        
           dhparam <- liftedAsync $ executeRoot "openssl" ["dhparam", "-out", dhparamPath, "2048"] "" True
           liftIO $ wait dhparam
           return ()
@@ -76,13 +98,13 @@ module Main (call, main) where
               
             liftIO $ wait letsencrypt
             return ()
-          _ -> liftIO $ do
-            putStrLn $ "you should use letsencrypt to create a certificate for your domain"
-            putStrLn $ "and put it in /etc/letsencrypt/live/" ++ domain ++ "/fullchain.pem"
-            putStrLn $ "my suggestion is running this command:"
-            putStrLn $ "sudo letsencrypt certonly --webroot --webroot-path <YOUR_APPLICATION_DIRECTORY> -d " ++ domain 
+          _ -> do
+            info $ "you should use letsencrypt to create a certificate for your domain"
+            write $ "and put it in /etc/letsencrypt/live/" ++ domain ++ "/fullchain.pem"
+            write $ "my suggestion is running this command:"
+            write $ "sudo letsencrypt certonly --webroot --webroot-path <YOUR_APPLICATION_DIRECTORY> -d " ++ domain 
 
-        liftIO $ putStrLn $ "for more information, see: https://certbot.eff.org/"
+        write $ "for more information, see: https://certbot.eff.org/"
 
       return ()
     where
@@ -90,8 +112,7 @@ module Main (call, main) where
         result <- restartService "nginx"
         case result of
           Left err -> return ()
-          Right _ ->
-            liftIO $ putStrLn $ "restarted nginx"
+          Right _ -> info $ "restarted nginx"
 
       writeIncludeStatementIfMissing path target = do
         content <- readFile path

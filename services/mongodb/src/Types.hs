@@ -9,6 +9,7 @@ module Types (DatabaseParams(..), toDBParams, dummy) where
   toDBParams (("pass", Just value):xs) = (toDBParams xs) { pass = value }
   toDBParams (("host", Just value):xs) = (toDBParams xs) { host = value }
   toDBParams (("dummy-data", Just value):xs) = (toDBParams xs) { dummyData = True }
+  toDBParams (_:xs) = (toDBParams xs)
   toDBParams _ = def
 
   data DatabaseParams = DatabaseParams { database  :: String

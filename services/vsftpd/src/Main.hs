@@ -16,6 +16,17 @@ module Main (call, main) where
   import Data.Either
   import Control.Monad.State hiding (liftIO)
 
+  help :: App String
+  help = return $
+          mkHelp "vsftpd [--options]"
+                  [ ("--directory <path>", "directory to serve, default: /srv/ftp/serverman/")
+                  , ("--user <username>", "ftp server username, default: serverman")
+                  , ("--password <password>", "ftp server password, default: serverman")
+                  , ("--port <num>", "ftp server port number, default: 20")
+                  , ("--anonymous", "allow anonymous connections, default: False")
+                  , ("--anonymous-write", "allow anonymous writes, default: False")
+                  , ("--writable", "allow writes to the ftp server, default: True")
+                  , ("--recreate-user", "if the specified username exists, delete and create it again, otherwise leave it intact")]
 
   call :: Service -> App ()
   call s@(Service { name, version, service })= do

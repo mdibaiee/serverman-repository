@@ -13,6 +13,7 @@ module Types ( FileSharingParams (..)
   toFSParams (("anonymous", Nothing):xs) = (toFSParams xs) { anonymous = True }
   toFSParams (("anonymous-write", Nothing):xs) = (toFSParams xs) { anonymousWrite = True }
   toFSParams (("recreate-user", Nothing):xs) = (toFSParams xs) { recreateUser = True }
+  toFSParams (_:xs) = (toFSParams xs)
   toFSParams _ = def
 
   data FileSharingParams = FileSharingParams { directory      :: FilePath

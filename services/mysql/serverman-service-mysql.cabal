@@ -18,4 +18,5 @@ executable mysql
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                      , data-default-class
-                     , mysql >= 0.1.4 && < 1
+                     , mysql-haskell >= 0.1.4 && < 1
+                     , text 

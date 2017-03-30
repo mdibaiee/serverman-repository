@@ -15,37 +15,40 @@ module Types ( ServerType (..)
   toServerParams (("forward", Just value):xs) = (toServerParams xs) { forward = value, serverType = PortForwarding  }
   toServerParams (("email", Just value):xs) = (toServerParams xs) { email = value }
   toServerParams (("ssl", Nothing):xs) = (toServerParams xs) { ssl = True }
+  toServerParams (("directory-listing", Nothing):xs) = (toServerParams xs) { directoryListing = True }
+  toServerParams (_:xs) = (toServerParams xs)
   toServerParams _ = def
 
   data ServerType = Static | PortForwarding deriving (Show, Eq)
-  data ServerParams = ServerParams { directory     :: FilePath
-                                   , domain        :: String
-                                   , port          :: String
-                                   , forward       :: String
-                                   , email         :: String
-                                   , ssl           :: Bool
-                                   , serverType    :: ServerType
+  data ServerParams = ServerParams { directory        :: FilePath
+                                   , domain           :: String
+                                   , port             :: String
+                                   , forward          :: String
+                                   , email            :: String
+                                   , ssl              :: Bool
+                                   , directoryListing :: Bool
+                                   , serverType       :: ServerType
                                    } deriving (Eq)
 
   instance Default ServerParams where
-    def = ServerParams { directory  = "/var/www"
-                       , domain     = "localhost"
-                       , port       = "80"
-                       , forward    = ""
-                       , email      = ""
-                       , ssl        = False
-                       , serverType = Static }
+    def = ServerParams { directory        = "/var/www/html"
+                       , domain           = "localhost"
+                       , port             = "80"
+                       , forward          = ""
+                       , email            = ""
+                       , ssl              = False
+                       , directoryListing = False
+                       , serverType       = Static }
 
   instance Show ServerParams where
-    show (ServerParams { directory, domain, port, forward, email, ssl, serverType }) =
+    show (ServerParams { directory, domain, port, forward, email, ssl, serverType, directoryListing }) =
       let redirect
             | ssl = block "server" $
-                          semicolon $
-                            keyvalue ([ ("listen", "80")
-                                      , ("listen", "[::]:80")
-                                      , ("server_name", domain)
-                                      , ("rewrite", "^ https://$server_name$request_uri? permanent")
-                                      ]) " "
+                          keyvalue ([ ("listen", "80")
+                                    , ("listen", "[::]:80")
+                                    , ("server_name", domain)
+                                    , ("rewrite", "^ https://$server_name$request_uri? permanent")
+                                    ]) " "
             | otherwise = ""
           https
             | ssl = [ ("ssl_certificate", "/etc/letsencrypt/live/" ++ domain ++ "/fullchain.pem")
@@ -59,11 +62,12 @@ module Types ( ServerType (..)
                   , ("listen", listen)
                   , ("listen", "[::]:" ++ listen)
                   , ("index", "index.html index.html index.php")
+                  , ("autoindex", if directoryListing then "on" else "off")
                   ] ++ https
       in 
         case serverType of
           Static -> 
-            (block "server" $ keyvalue (base ++ [("root", directory)]) " ") ++ "\n" ++ redirect
+            (block "server" $ semicolon $ keyvalue (base ++ [("root", directory)]) " ") ++ "\n" ++ redirect
 
           PortForwarding -> 
             let proxyBlock = block "location /" $

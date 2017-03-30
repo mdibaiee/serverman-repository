@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Types (DatabaseParams(..), toDBParams, dummy) where
   import System.Serverman.Utils
   
@@ -6,9 +8,11 @@ module Types (DatabaseParams(..), toDBParams, dummy) where
   toDBParams :: [(String, Maybe String)] -> DatabaseParams
   toDBParams (("database", Just value):xs) = (toDBParams xs) { database = value }
   toDBParams (("user", Just value):xs) = (toDBParams xs) { user = value }
-  toDBParams (("pass", Just value):xs) = (toDBParams xs) { pass = value }
+  toDBParams (("password", Just value):xs) = (toDBParams xs) { pass = value }
   toDBParams (("host", Just value):xs) = (toDBParams xs) { host = value }
-  toDBParams (("dummy-data", Just value):xs) = (toDBParams xs) { dummyData = True }
+  toDBParams (("port", Just value):xs) = (toDBParams xs) { port = value }
+  toDBParams (("dummy-data", Nothing):xs) = (toDBParams xs) { dummyData = True }
+  toDBParams (_:xs) = (toDBParams xs)
   toDBParams _ = def
 
   data DatabaseParams = DatabaseParams { database  :: String
@@ -16,6 +20,7 @@ module Types (DatabaseParams(..), toDBParams, dummy) where
                                        , user      :: String
                                        , pass      :: String
                                        , host      :: String
+                                       , port      :: String
                                        } deriving (Eq, Show)
 
   instance Default DatabaseParams where
@@ -24,6 +29,7 @@ module Types (DatabaseParams(..), toDBParams, dummy) where
                          , user      = "serverman"
                          , pass      = "serverman"
                          , host      = "localhost"
+                         , port      = "3306"
                          }
 
   dummy = ("serverman_users", ["first_name", "last_name", "email", "children", "birth_date", "gender"], [

@@ -27,6 +27,8 @@
     "dependencies": [],
     "service": "mysql",
     "packages": {
+      "debian": ["mysql-server"],
+      "arch": ["mariadb"],
       "_": ["mysql"]
     },
     "category": "database"

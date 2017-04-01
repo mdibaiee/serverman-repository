@@ -11,6 +11,7 @@ module Main (call, main) where
   import System.FilePath
   import System.Process
   import Control.Concurrent.Async
+  import Control.Concurrent
   import Control.Monad
   import Control.Monad.State hiding (liftIO)
   import Control.Monad.Free
@@ -36,6 +37,8 @@ module Main (call, main) where
       (AppState { arguments }) <- get
       let params@(ServerParams { ssl, domain, directory, serverType, email }) = toServerParams arguments
 
+      done <- progressText "setting up nginx configuration"
+
       verbose $ show params
 
       -- Turn SSL off at first, because we have not yet received a certificate
@@ -57,7 +60,7 @@ module Main (call, main) where
                 when (not ("error" `isInfixOf` stdout)) $ do
                   verbose $ "writing params to " ++ path
                   liftIO $ writeFile path (show params)
-                  liftIO . wait =<< restart
+                  restart
                   return ()
 
       verbose $ "creating directories " ++ targetDir ++ ", " ++ parent
@@ -76,27 +79,28 @@ module Main (call, main) where
 
         info $ "wrote ssl configuration to " ++ sslPath
 
+      done
       liftIO $ writeFile path content
       info $ "wrote your configuration file to " ++ path
         
-      liftIO . wait =<< restart
+      restart
 
       when ssl $ do
+        done <- progressText "creating SSL certificate"
         let dhparamPath = "/etc/ssl/certs/dhparam.pem"
         dhExists <- liftIO $ doesFileExist dhparamPath
 
         when (not dhExists) $ do
           verbose $ "creating dhparam using openssl"
         
-          dhparam <- liftedAsync $ executeRoot "openssl" ["dhparam", "-out", dhparamPath, "2048"] "" True
-          liftIO $ wait dhparam
+          dhparam <- executeRoot "openssl" ["dhparam", "-out", dhparamPath, "2048"] "" True
           return ()
 
         case serverType of
           Static -> do
-            letsencrypt <- liftedAsync $ createCert path "letsencrypt"
-              
-            liftIO $ wait letsencrypt
+            letsencrypt <- createCert path "letsencrypt"
+            done
+
             return ()
           _ -> do
             info $ "you should use letsencrypt to create a certificate for your domain"
@@ -108,7 +112,7 @@ module Main (call, main) where
 
       return ()
     where
-      restart = liftedAsync $ do
+      restart = do
         result <- restartService "nginx"
         case result of
           Left err -> return ()

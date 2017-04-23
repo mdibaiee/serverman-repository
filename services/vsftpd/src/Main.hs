@@ -2,6 +2,7 @@
 module Main (call, main) where
   import System.Serverman.Types
   import System.Serverman.Utils
+  import System.Serverman.Log
   import Types
 
   import System.Directory hiding (writable)
@@ -15,6 +16,7 @@ module Main (call, main) where
   import Data.List
   import Data.Either
   import Control.Monad.State hiding (liftIO)
+  import System.Posix (setOwnerAndGroup, getFileStatus, fileOwner)
 
   help :: App String
   help = return $
@@ -29,17 +31,17 @@ module Main (call, main) where
                   , ("--recreate-user", "if the specified username exists, delete and create it again, otherwise leave it intact")]
 
   call :: Service -> App ()
-  call s@(Service { name, version, service })= do
-    (AppState { os, arguments }) <- get
+  call s@Service { name, version, service }= do
+    AppState { os, arguments } <- get
 
-    let params@(FileSharingParams { directory, port, user, pass, anonymous, anonymousWrite, writable, recreateUser }) = toFSParams arguments
+    let params@FileSharingParams { directory, port, user, pass, anonymous, anonymousWrite, writable, recreateUser } = toFSParams arguments
 
     let content = show params
         config = "/etc/"
         original = config </> "vsftpd.conf"
         userList = config </> "vsftpd-serverman-user-list"
 
-    when recreateUser $ executeRoot "userdel" [user] "" True >> return ()
+    when recreateUser $ void $ executeRoot "userdel" [user] "" True
 
     (Right opensslResponse) <- execute "openssl" ["passwd", "-1", pass] "" True
     let encryptedPassword = head . lines $ opensslResponse
@@ -47,18 +49,26 @@ module Main (call, main) where
     executeRoot "groupadd" ["-f", "ftp"] "" False
     executeRoot "useradd" [user, "-d", directory, "-G", "ftp", "-p", encryptedPassword] "" False
 
+    ftpId <- getGroupId (Just "ftp")
+    userId <- getUserId (Just user)
+
     liftIO $ do
-      execIfExists original $ do
+      execIfExists original $
         renameFileIfMissing original (original ++ ".backup")
 
       writeFile original content
       writeFile userList user
+      
+      createDirectoryIfMissing True directory
+
+      setOwnerAndGroup directory userId ftpId
+      writeFile (directory </> "serverman-sample") "Hello from Serverman!"
 
     result <- restartService "vsftpd"
     case result of
       Left err -> return ()
       Right _ ->
-        liftIO $ putStrLn $ "restarted vsftpd"
+        info "restarted vsftpd"
 
   main :: IO ()
   main = return ()

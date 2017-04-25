@@ -44,6 +44,7 @@ module Types ( ServerType (..)
     show ServerParams { directory, domain, port, forward, email, ssl, serverType, directoryListing } =
       let redirect
             | ssl = block "server" $
+                      semicolon $
                           keyvalue [ ("listen", "80")
                                    , ("listen", "[::]:80")
                                    , ("server_name", domain)
@@ -67,7 +68,10 @@ module Types ( ServerType (..)
       in 
         case serverType of
           Static -> 
-            block "server" $ semicolon $ keyvalue (base ++ [("root", directory)]) " " ++ "\n" ++ redirect
+            block "server" 
+              (semicolon $
+                keyvalue (base ++ [("root", directory)]) " ")
+            ++ "\n" ++ redirect
 
           PortForwarding -> 
             let proxyBlock = block "location /" $
@@ -77,4 +81,6 @@ module Types ( ServerType (..)
                                            , ("proxy_set_header", "X-Forwarded-Server $host")
                                            , ("proxy_set_header", "X-Forwarded-For $proxy_add_x_forwarded_for")
                                            ] " "
-            in block "server" $ semicolon (keyvalue base " ") ++ proxyBlock ++ "\n" ++ semicolon redirect
+            in block "server"
+                 (semicolon (keyvalue base " "))
+              ++ proxyBlock ++ "\n" ++ redirect

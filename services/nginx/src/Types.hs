@@ -16,7 +16,7 @@ module Types ( ServerType (..)
   toServerParams (("email", Just value):xs) = (toServerParams xs) { email = value }
   toServerParams (("ssl", Nothing):xs) = (toServerParams xs) { ssl = True }
   toServerParams (("directory-listing", Nothing):xs) = (toServerParams xs) { directoryListing = True }
-  toServerParams (_:xs) = (toServerParams xs)
+  toServerParams (_:xs) = toServerParams xs
   toServerParams _ = def
 
   data ServerType = Static | PortForwarding deriving (Show, Eq)
@@ -41,14 +41,14 @@ module Types ( ServerType (..)
                        , serverType       = Static }
 
   instance Show ServerParams where
-    show (ServerParams { directory, domain, port, forward, email, ssl, serverType, directoryListing }) =
+    show ServerParams { directory, domain, port, forward, email, ssl, serverType, directoryListing } =
       let redirect
             | ssl = block "server" $
-                          keyvalue ([ ("listen", "80")
-                                    , ("listen", "[::]:80")
-                                    , ("server_name", domain)
-                                    , ("rewrite", "^ https://$server_name$request_uri? permanent")
-                                    ]) " "
+                          keyvalue [ ("listen", "80")
+                                   , ("listen", "[::]:80")
+                                   , ("server_name", domain)
+                                   , ("rewrite", "^ https://$server_name$request_uri? permanent")
+                                   ] " "
             | otherwise = ""
           https
             | ssl = [ ("ssl_certificate", "/etc/letsencrypt/live/" ++ domain ++ "/fullchain.pem")
@@ -56,7 +56,7 @@ module Types ( ServerType (..)
                     , ("include", "ssl.conf")]
             | otherwise = []
 
-          listen = port ++ (if ssl then " ssl" else "")
+          listen = if ssl then "443 ssl" else port
 
           base = [ ("server_name", domain)
                   , ("listen", listen)
@@ -67,14 +67,14 @@ module Types ( ServerType (..)
       in 
         case serverType of
           Static -> 
-            (block "server" $ semicolon $ keyvalue (base ++ [("root", directory)]) " ") ++ "\n" ++ redirect
+            block "server" $ semicolon $ keyvalue (base ++ [("root", directory)]) " " ++ "\n" ++ redirect
 
           PortForwarding -> 
             let proxyBlock = block "location /" $
                                 semicolon $
-                                  keyvalue ([ ("proxy_pass", "http://127.0.0.1:" ++ forward)
-                                            , ("proxy_set_header", "X-Forwarded-Host $host")
-                                            , ("proxy_set_header", "X-Forwarded-Server $host")
-                                            , ("proxy_set_header", "X-Forwarded-For $proxy_add_x_forwarded_for")
-                                            ]) " "
-            in (block "server" $ semicolon (keyvalue base " ") ++ proxyBlock) ++ "\n" ++ redirect
+                                  keyvalue [ ("proxy_pass", "http://127.0.0.1:" ++ forward)
+                                           , ("proxy_set_header", "X-Forwarded-Host $host")
+                                           , ("proxy_set_header", "X-Forwarded-Server $host")
+                                           , ("proxy_set_header", "X-Forwarded-For $proxy_add_x_forwarded_for")
+                                           ] " "
+            in block "server" $ semicolon (keyvalue base " ") ++ proxyBlock ++ "\n" ++ semicolon redirect

@@ -50,7 +50,7 @@ module Types ( ServerType (..)
                                    , ("server_name", domain)
                                    , ("rewrite", "^ https://$server_name$request_uri? permanent")
                                    ] " "
-            | otherwise = ""
+            | otherwise = []
           https
             | ssl = [ ("ssl_certificate", "/etc/letsencrypt/live/" ++ domain ++ "/fullchain.pem")
                     , ("ssl_certificate_key", "/etc/letsencrypt/live/" ++ domain ++ "/privkey.pem")
@@ -81,6 +81,6 @@ module Types ( ServerType (..)
                                            , ("proxy_set_header", "X-Forwarded-Server $host")
                                            , ("proxy_set_header", "X-Forwarded-For $proxy_add_x_forwarded_for")
                                            ] " "
-            in block "server"
-                 (semicolon (keyvalue base " "))
-              ++ proxyBlock ++ "\n" ++ redirect
+            in block "server" $
+                 semicolon (keyvalue base " ")
+                 ++ proxyBlock ++ "\n" ++ redirect

@@ -16,6 +16,7 @@ module Main (call, main) where
   import Control.Monad.State hiding (liftIO)
   import Control.Monad.Free
   import Data.List
+  import System.Posix (setOwnerAndGroup, getFileStatus, fileOwner)
 
   main :: IO ()
   main = return ()
@@ -34,36 +35,38 @@ module Main (call, main) where
   call :: Service -> App ()
   call _ = 
     do
-      (AppState { arguments }) <- get
-      let params@(ServerParams { ssl, domain, directory, serverType, email }) = toServerParams arguments
+      AppState { arguments } <- get
+      let params@ServerParams { ssl, domain, port, directory, serverType, email } = toServerParams arguments
 
       done <- progressText "setting up nginx configuration"
 
       verbose $ show params
 
       -- Turn SSL off at first, because we have not yet received a certificate
-      let content = show (params { ssl = False, port = "80" })
+      let content = if ssl then show (params { ssl = False, port = "80" }) else show params
           config = "/etc/nginx/"
           mainConfig = "/etc/nginx/nginx.conf"
           parent = config </> "serverman-configs"
           path = parent </> domain
           targetDir = directory
+          sampleFile = targetDir </> "serverman.txt"
 
           createCert path cmd = do
             verbose $ "creating certificate in " ++ path ++ " using command " ++ cmd
             result <- executeRoot cmd ["certonly", "--webroot", "--webroot-path", directory, "-d", domain, "--email", email, "--agree-tos", "-n"] "" False
             case result of
-              Left _ -> if cmd == "letsencrypt" then createCert path "certbot" else return ()
+              Left _ -> when (cmd == "letsencrypt") $ createCert path "certbot"
               Right stdout -> do
                 write stdout
 
-                when (not ("error" `isInfixOf` stdout)) $ do
+                unless ("error" `isInfixOf` stdout) $ do
                   verbose $ "writing params to " ++ path
                   liftIO $ writeFile path (show params)
                   restart
                   return ()
 
       verbose $ "creating directories " ++ targetDir ++ ", " ++ parent
+
       liftIO $ do
         createDirectoryIfMissing True targetDir
         createDirectoryIfMissing True parent
@@ -82,6 +85,9 @@ module Main (call, main) where
       done
       liftIO $ writeFile path content
       info $ "wrote your configuration file to " ++ path
+
+      liftIO $ writeFile sampleFile "Hello from serverman!"
+      info $ "wrote a sample file to " ++ sampleFile ++ ", you should be able to access it through " ++ domain ++ ":" ++ port ++ "/serverman.txt"
         
       restart
 
@@ -90,8 +96,8 @@ module Main (call, main) where
         let dhparamPath = "/etc/ssl/certs/dhparam.pem"
         dhExists <- liftIO $ doesFileExist dhparamPath
 
-        when (not dhExists) $ do
-          verbose $ "creating dhparam using openssl"
+        unless dhExists $ do
+          verbose "creating dhparam using openssl"
         
           dhparam <- executeRoot "openssl" ["dhparam", "-out", dhparamPath, "2048"] "" True
           return ()
@@ -103,12 +109,12 @@ module Main (call, main) where
 
             return ()
           _ -> do
-            info $ "you should use letsencrypt to create a certificate for your domain"
+            info "you should use letsencrypt to create a certificate for your domain"
             write $ "and put it in /etc/letsencrypt/live/" ++ domain ++ "/fullchain.pem"
-            write $ "my suggestion is running this command:"
+            write "my suggestion is running this command:"
             write $ "sudo letsencrypt certonly --webroot --webroot-path <YOUR_APPLICATION_DIRECTORY> -d " ++ domain 
 
-        write $ "for more information, see: https://certbot.eff.org/"
+        write "for more information, see: https://certbot.eff.org/"
 
       return ()
     where
@@ -116,15 +122,15 @@ module Main (call, main) where
         result <- restartService "nginx"
         case result of
           Left err -> return ()
-          Right _ -> info $ "restarted nginx"
+          Right _ -> info "restarted nginx"
 
       writeIncludeStatementIfMissing path target = do
         content <- readFile path
 
         let statement = "include " ++ target ++ "/*;"
 
-        when (not (statement `isInfixOf` content)) $ do
-          let newContent = appendAfter content "http {" (indent . indent $ statement)
+        unless (statement `isInfixOf` content) $ do
+          let newContent = appendAfter content "http {" (indent statement)
 
           writeFile path newContent
 
